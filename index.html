@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mac e-Test Preparation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: The application uses a three-view, single-page architecture: Welcome, Test, and Results. This structure was chosen to create a clear, task-oriented user flow. It guides the user from understanding the test format (Welcome), to experiencing a simulated exam (Test), and finally to analyzing their performance (Results). This multi-stage approach is more intuitive and effective for a learning tool than a static display of questions, as it separates the distinct tasks of preparation, practice, and review into focused, interactive screens. -->
+    <!-- Visualization & Content Choices: Report Info: Overall test score. -> Goal: Inform proportion. -> Viz: Donut Chart (Chart.js/Canvas). -> Interaction: Static view of correct vs. incorrect. -> Justification: Provides a quick, easily digestible visual summary of overall performance. Report Info: Sectional scores (Math, English, etc.). -> Goal: Compare performance across categories. -> Viz: Bar Chart (Chart.js/Canvas). -> Interaction: Static view comparing scores. -> Justification: Allows users to instantly identify strong and weak subject areas. Report Info: All test questions. -> Goal: Organize and review. -> Presentation: Interactive HTML list. -> Interaction: Scroll to review each question, its options, the user's answer, and the correct answer. -> Justification: Enables detailed drill-down analysis to understand specific mistakes. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f4f5; /* Warm Neutral: Zinc 100 */
+        }
+        .view {
+            display: none;
+        }
+        .view.active {
+            display: block;
+        }
+        .option-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .option-btn.selected {
+            background-color: #3b82f6; /* Blue 500 */
+            color: white;
+            border-color: #3b82f6;
+        }
+        .option-btn:not(.selected):hover {
+            background-color: #e5e7eb; /* Gray 200 */
+        }
+        .correct-answer {
+            background-color: #dcfce7; /* Green 100 */
+            border-left: 4px solid #22c55e; /* Green 500 */
+        }
+        .incorrect-answer {
+            background-color: #fee2e2; /* Red 100 */
+            border-left: 4px solid #ef4444; /* Red 500 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="text-zinc-800">
+
+    <div id="app" class="container mx-auto p-4 md:p-8 max-w-5xl">
+
+        <!-- Welcome View -->
+        <div id="welcome-view" class="view active">
+            <div class="text-center bg-white p-8 rounded-2xl shadow-lg">
+                <h1 class="text-4xl md:text-5xl font-bold text-zinc-900 mb-4">Mac e-Test Preparation</h1>
+                <p class="text-lg text-zinc-600 mb-6">Excel in the FAST University Entry Test for BS (CS/Engg.) with realistic, timed practice exams and detailed performance analysis.</p>
+
+                <div class="my-8 p-6 bg-zinc-50 rounded-xl border border-zinc-200">
+                    <h2 class="text-2xl font-semibold mb-4 text-zinc-800">Test Structure (BS CS/Engg.)</h2>
+                    <p class="text-zinc-600 mb-6">Each test is structured according to the official weightage to give you an authentic practice experience.</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                        <div class="p-4 bg-white rounded-lg border">
+                            <p class="text-3xl font-bold text-sky-600">50%</p>
+                            <p class="text-sm text-zinc-500 mt-1">Advanced Math</p>
+                        </div>
+                        <div class="p-4 bg-white rounded-lg border">
+                            <p class="text-3xl font-bold text-teal-600">20%</p>
+                            <p class="text-sm text-zinc-500 mt-1">Basic Math</p>
+                        </div>
+                        <div class="p-4 bg-white rounded-lg border">
+                            <p class="text-3xl font-bold text-amber-600">20%</p>
+                            <p class="text-sm text-zinc-500 mt-1">Analytical & IQ</p>
+                        </div>
+                        <div class="p-4 bg-white rounded-lg border">
+                            <p class="text-3xl font-bold text-indigo-600">10%</p>
+                            <p class="text-sm text-zinc-500 mt-1">English</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-medium mb-4">Choose a test to begin:</h3>
+                <div class="flex flex-col md:flex-row justify-center gap-4">
+                    <button onclick="startTest(0)" class="w-full md:w-auto bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md hover:bg-blue-700 transition-transform transform hover:scale-105">Start Test 1</button>
+                    <button onclick="startTest(1)" class="w-full md:w-auto bg-green-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md hover:bg-green-700 transition-transform transform hover:scale-105">Start Test 2</button>
+                    <button onclick="startTest(2)" class="w-full md:w-auto bg-purple-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md hover:bg-purple-700 transition-transform transform hover:scale-105">Start Test 3</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test View -->
+        <div id="test-view" class="view">
+            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+                <div class="flex justify-between items-center mb-4 border-b pb-4">
+                    <div>
+                        <span id="test-section" class="font-semibold text-lg text-zinc-700">Section</span>
+                        <p id="question-counter" class="text-sm text-zinc-500">Question 1 of 100</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-bold text-red-600" id="timer">02:00:00</p>
+                        <p class="text-sm text-zinc-500">Time Remaining</p>
+                    </div>
+                </div>
+                
+                <div class="w-full bg-zinc-200 rounded-full h-2.5 mb-6">
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+
+                <div id="question-container" class="my-6">
+                    <p id="question-text" class="text-xl md:text-2xl leading-relaxed mb-6"></p>
+                    <div id="options-container" class="flex flex-col space-y-3"></div>
+                </div>
+
+                <div class="flex justify-end mt-8">
+                     <button id="next-btn" onclick="nextQuestion()" class="bg-blue-600 text-white font-semibold py-2 px-10 rounded-lg hover:bg-blue-700 transition">Next</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results View -->
+        <div id="results-view" class="view">
+            <div class="text-center bg-white p-8 rounded-2xl shadow-lg">
+                <h1 class="text-4xl md:text-5xl font-bold text-zinc-900 mb-2">Test Completed!</h1>
+                <p id="test-summary" class="text-lg text-zinc-600 mb-8">Here is your performance analysis for Test 1.</p>
+                
+                <div class="grid md:grid-cols-2 gap-8 my-8 items-center">
+                    <div class="w-full">
+                         <h2 class="text-2xl font-semibold mb-4 text-zinc-800">Overall Score</h2>
+                        <div class="chart-container">
+                            <canvas id="overall-score-chart"></canvas>
+                        </div>
+                        <p id="overall-score-text" class="text-2xl font-bold mt-4"></p>
+                    </div>
+                    <div class="w-full">
+                        <h2 class="text-2xl font-semibold mb-4 text-zinc-800">Sectional Performance</h2>
+                        <div class="chart-container h-96">
+                             <canvas id="sectional-score-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-left mt-12">
+                    <h2 class="text-3xl font-bold mb-6 text-zinc-900 border-b pb-3">Detailed Question Review</h2>
+                    <div id="review-container" class="space-y-4"></div>
+                </div>
+
+                <div class="mt-12">
+                    <button onclick="restartApp()" class="bg-gray-800 text-white font-semibold py-3 px-8 rounded-lg hover:bg-gray-900 transition">Take Another Test</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const appState = {
+            currentView: 'welcome',
+            currentTest: null,
+            currentTestIndex: -1,
+            currentQuestionIndex: 0,
+            userAnswers: [],
+            timer: null,
+            timeRemaining: 2 * 60 * 60, // 2 hours in seconds
+        };
+
+        const testData = [
+            {
+                name: "Test 1",
+                questions: [
+                    { section: 'Advanced Math', text: 'Find $(A-B)\\cap B$ when $A=\\{a,e,i,o,u\\}$ and $B=\\{a,b,c,d\\}$', options: ['Ф', 'A', 'B', 'A-B'], answer: 'Ф'},
+                    { section: 'Advanced Math', text: 'What is the value of $\\sin(2\\pi)$?', options: ['0', '1', '-1', 'undefined'], answer: '0'},
+                    { section: 'Advanced Math', text: 'Find the derivative of $x^3$.', options: ['$3x^2$', '$x^2$', '$3x$', '$x^3/3$'], answer: '$3x^2$'},
+                    { section: 'Advanced Math', text: 'If a matrix has a determinant of 0, it is called:', options: ['Singular', 'Non-singular', 'Identity', 'Scalar'], answer: 'Singular'},
+                    ...Array(46).fill(0).map((_, i) => ({ section: 'Advanced Math', text: `Placeholder Advanced Math Question ${i+5}`, options: ['A', 'B', 'C', 'D'], answer: 'A' })),
+                    { section: 'Basic Math', text: 'What is 15% of 200?', options: ['15', '20', '30', '40'], answer: '30'},
+                    { section: 'Basic Math', text: 'If a car travels 120 km in 2 hours, what is its speed?', options: ['50 km/h', '60 km/h', '70 km/h', '80 km/h'], answer: '60 km/h'},
+                    ...Array(18).fill(0).map((_, i) => ({ section: 'Basic Math', text: `Placeholder Basic Math Question ${i+3}`, options: ['A', 'B', 'C', 'D'], answer: 'A' })),
+                    { section: 'Analytical & IQ', text: 'Which number comes next in the series: 2, 4, 8, 16, ...?', options: ['20', '24', '32', '40'], answer: '32'},
+                    { section: 'Analytical & IQ', text: 'Book is to Reading as Fork is to:', options: ['Drawing', 'Writing', 'Eating', 'Stirring'], answer: 'Eating'},
+                    ...Array(18).fill(0).map((_, i) => ({ section: 'Analytical & IQ', text: `Placeholder IQ Question ${i+3}`, options: ['A', 'B', 'C', 'D'], answer: 'A' })),
+                    { section: 'English', text: 'Choose the synonym for "Happy".', options: ['Sad', 'Joyful', 'Angry', 'Tired'], answer: 'Joyful'},
+                    { section: 'English', text: 'Which sentence is grammatically correct?', options: ['He go to school.', 'He goes to school.', 'He is go to school.', 'He going to school.'], answer: 'He goes to school.'},
+                    ...Array(8).fill(0).map((_, i) => ({ section: 'English', text: `Placeholder English Question ${i+3}`, options: ['A', 'B', 'C', 'D'], answer: 'A' }))
+                ]
+            },
+            {
+                name: "Test 2",
+                questions: [
+                    ...Array(50).fill(0).map((_, i) => ({ section: 'Advanced Math', text: `Test 2: Adv Math Q${i+1}`, options: ['A', 'B', 'C', 'D'], answer: 'B' })),
+                    ...Array(20).fill(0).map((_, i) => ({ section: 'Basic Math', text: `Test 2: Basic Math Q${i+1}`, options: ['A', 'B', 'C', 'D'], answer: 'C' })),
+                    ...Array(20).fill(0).map((_, i) => ({ section: 'Analytical & IQ', text: `Test 2: IQ Q${i+1}`, options: ['A', 'B', 'C', 'D'], answer: 'D' })),
+                    ...Array(10).fill(0).map((_, i) => ({ section: 'English', text: `Test 2: English Q${i+1}`, options: ['A', 'B', 'C', 'D'], answer: 'A' })),
+                ]
+            },
+            {
+                name: "Test 3",
+                questions: [
+                    ...Array(50).fill(0).map((_, i) => ({ section: 'Advanced Math', text: `Test 3: Adv Math Q${i+1}`, options: ['A', 'B', 'C', 'D'], answer: 'C' })),
+                    ...Array(20).fill(0).map((_, i) => ({ section: 'Basic Math', text: `Test 3: Basic Math Q${i+1}`, options: ['A', 'B', 'C', 'D'], answer: 'D' })),
+                    ...Array(20).fill(0).map((_, i) => ({ section: 'Analytical & IQ', text: `Test 3: IQ Q${i+1}`, options: ['A', 'B', 'C', 'D'], answer: 'A' })),
+                    ...Array(10).fill(0).map((_, i) => ({ section: 'English', text: `Test 3: English Q${i+1}`, options: ['A', 'B', 'C', 'D'], answer: 'B' })),
+                ]
+            }
+        ];
+
+        const views = {
+            welcome: document.getElementById('welcome-view'),
+            test: document.getElementById('test-view'),
+            results: document.getElementById('results-view'),
+        };
+
+        const testElements = {
+            section: document.getElementById('test-section'),
+            counter: document.getElementById('question-counter'),
+            timer: document.getElementById('timer'),
+            progress: document.getElementById('progress-bar'),
+            questionText: document.getElementById('question-text'),
+            optionsContainer: document.getElementById('options-container'),
+            nextBtn: document.getElementById('next-btn'),
+        };
+
+        const resultsElements = {
+            summary: document.getElementById('test-summary'),
+            overallScoreText: document.getElementById('overall-score-text'),
+            overallScoreChart: document.getElementById('overall-score-chart'),
+            sectionalScoreChart: document.getElementById('sectional-score-chart'),
+            reviewContainer: document.getElementById('review-container'),
+        };
+
+        function switchView(viewName) {
+            appState.currentView = viewName;
+            for (const key in views) {
+                views[key].classList.remove('active');
+            }
+            views[viewName].classList.add('active');
+        }
+
+        function startTest(testIndex) {
+            appState.currentTestIndex = testIndex;
+            appState.currentTest = testData[testIndex];
+            appState.currentQuestionIndex = 0;
+            appState.userAnswers = new Array(appState.currentTest.questions.length).fill(null);
+            appState.timeRemaining = 2 * 60 * 60;
+            
+            displayQuestion();
+            startTimer();
+            switchView('test');
+        }
+        
+        function displayQuestion() {
+            const question = appState.currentTest.questions[appState.currentQuestionIndex];
+            const totalQuestions = appState.currentTest.questions.length;
+
+            testElements.section.textContent = question.section;
+            testElements.counter.textContent = `Question ${appState.currentQuestionIndex + 1} of ${totalQuestions}`;
+            testElements.progress.style.width = `${((appState.currentQuestionIndex) / totalQuestions) * 100}%`;
+            testElements.questionText.textContent = question.text;
+
+            testElements.optionsContainer.innerHTML = '';
+            question.options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.classList.add('option-btn', 'w-full', 'text-left', 'p-4', 'rounded-lg', 'border', 'border-zinc-300');
+                button.onclick = () => selectOption(option, button);
+                if (appState.userAnswers[appState.currentQuestionIndex] === option) {
+                    button.classList.add('selected');
+                }
+                testElements.optionsContainer.appendChild(button);
+            });
+            
+            if (appState.currentQuestionIndex === totalQuestions - 1) {
+                testElements.nextBtn.textContent = 'Finish Test';
+            } else {
+                testElements.nextBtn.textContent = 'Next';
+            }
+        }
+        
+        function selectOption(option, button) {
+            appState.userAnswers[appState.currentQuestionIndex] = option;
+            const buttons = testElements.optionsContainer.querySelectorAll('.option-btn');
+            buttons.forEach(btn => btn.classList.remove('selected'));
+            button.classList.add('selected');
+        }
+
+        function nextQuestion() {
+            if (appState.currentQuestionIndex < appState.currentTest.questions.length - 1) {
+                appState.currentQuestionIndex++;
+                displayQuestion();
+            } else {
+                finishTest();
+            }
+        }
+
+        function finishTest() {
+            clearInterval(appState.timer);
+            calculateResults();
+            switchView('results');
+        }
+
+        function startTimer() {
+            appState.timer = setInterval(() => {
+                appState.timeRemaining--;
+                const hours = Math.floor(appState.timeRemaining / 3600);
+                const minutes = Math.floor((appState.timeRemaining % 3600) / 60);
+                const seconds = appState.timeRemaining % 60;
+                
+                testElements.timer.textContent = 
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                
+                if (appState.timeRemaining <= 0) {
+                    finishTest();
+                }
+            }, 1000);
+        }
+
+        let overallChartInstance, sectionalChartInstance;
+
+        function calculateResults() {
+            const questions = appState.currentTest.questions;
+            const answers = appState.userAnswers;
+            let correctCount = 0;
+            const sectionResults = {
+                'Advanced Math': { correct: 0, total: 0 },
+                'Basic Math': { correct: 0, total: 0 },
+                'Analytical & IQ': { correct: 0, total: 0 },
+                'English': { correct: 0, total: 0 },
+            };
+
+            resultsElements.reviewContainer.innerHTML = '';
+
+            questions.forEach((q, i) => {
+                sectionResults[q.section].total++;
+                const isCorrect = q.answer === answers[i];
+                if (isCorrect) {
+                    correctCount++;
+                    sectionResults[q.section].correct++;
+                }
+                createReviewCard(q, answers[i], isCorrect);
+            });
+            
+            const totalQuestions = questions.length;
+            const score = (correctCount / totalQuestions) * 100;
+            resultsElements.summary.textContent = `Here is your performance analysis for ${appState.currentTest.name}.`;
+            resultsElements.overallScoreText.textContent = `${correctCount} / ${totalQuestions} Correct (${score.toFixed(1)}%)`;
+            
+            // Charts
+            if(overallChartInstance) overallChartInstance.destroy();
+            overallChartInstance = new Chart(resultsElements.overallScoreChart, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Correct', 'Incorrect'],
+                    datasets: [{
+                        data: [correctCount, totalQuestions - correctCount],
+                        backgroundColor: ['#22c55e', '#ef4444'],
+                        borderColor: '#ffffff',
+                        borderWidth: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            const sectionLabels = Object.keys(sectionResults);
+            const sectionScores = sectionLabels.map(label => {
+                const { correct, total } = sectionResults[label];
+                return total > 0 ? (correct / total) * 100 : 0;
+            });
+
+            if(sectionalChartInstance) sectionalChartInstance.destroy();
+            sectionalChartInstance = new Chart(resultsElements.sectionalScoreChart, {
+                type: 'bar',
+                data: {
+                    labels: sectionLabels,
+                    datasets: [{
+                        label: 'Score %',
+                        data: sectionScores,
+                        backgroundColor: ['#0ea5e9', '#14b8a6', '#f97316', '#6366f1'],
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { beginAtZero: true, max: 100, grid: { display: false } },
+                        y: { grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function createReviewCard(question, userAnswer, isCorrect) {
+            const card = document.createElement('div');
+            card.className = `p-4 rounded-lg ${isCorrect ? 'correct-answer' : 'incorrect-answer'}`;
+            
+            let optionsHTML = question.options.map(opt => {
+                let classes = 'block p-2 my-1 rounded';
+                if (opt === question.answer) {
+                    classes += ' bg-green-200 font-semibold';
+                }
+                if (opt === userAnswer && !isCorrect) {
+                     classes += ' bg-red-200';
+                }
+                return `<span class="${classes}">${opt}</span>`;
+            }).join('');
+            
+            card.innerHTML = `
+                <p class="font-semibold text-lg mb-2">${question.text}</p>
+                <div class="text-sm">
+                    <p class="mb-2"><strong>Your Answer:</strong> <span class="font-mono">${userAnswer || 'Not Answered'}</span></p>
+                    <p class="mb-2"><strong>Correct Answer:</strong> <span class="font-mono">${question.answer}</span></p>
+                    <details class="cursor-pointer">
+                        <summary class="font-medium text-zinc-600">Show All Options</summary>
+                        <div class="mt-2 pl-4 border-l-2 border-zinc-200">${optionsHTML}</div>
+                    </details>
+                </div>
+            `;
+            resultsElements.reviewContainer.appendChild(card);
+        }
+
+        function restartApp() {
+            clearInterval(appState.timer);
+            Object.assign(appState, {
+                currentView: 'welcome',
+                currentTest: null,
+                currentTestIndex: -1,
+                currentQuestionIndex: 0,
+                userAnswers: [],
+                timer: null,
+                timeRemaining: 2 * 60 * 60,
+            });
+            switchView('welcome');
+        }
+
+        window.onload = () => {
+            switchView('welcome');
+        };
+
+    </script>
+
+</body>
+</html>
